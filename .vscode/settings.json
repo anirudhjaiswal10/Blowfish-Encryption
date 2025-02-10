@@ -2,7 +2,8 @@
     "files.associations": {
         "TST2FISH.C": "cpp",
         "TWOFISH2.C": "cpp",
-        "twofish.C": "cpp"
+        "twofish.C": "cpp",
+        "string.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
