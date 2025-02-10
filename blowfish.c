@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include "blowfish.h"
 #include <stdint.h>
-#include <string.h>
+#include <string.h>.
 
 #define N 16
 
