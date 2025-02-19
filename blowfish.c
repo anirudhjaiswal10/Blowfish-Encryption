@@ -214,11 +214,11 @@ void Blowfish_Init(BLOWFISH_CTX *ctx, uint8_t *key, int32_t keyLen)
     int32_t j = 0;
     uint32_t data = 0;
 
-    // ✅ Copy original P-array and S-boxes into the context
+    //  Copy original P-array and S-boxes into the context
     memcpy(ctx->P, ORIG_P, sizeof(ORIG_P));
     memcpy(ctx->S, ORIG_S, sizeof(ORIG_S));
 
-    // ✅ XOR key into P-array
+    //  XOR key into P-array
     for (int i = 0; i < 16 + 2; ++i) 
     {
         data = 0;
@@ -229,7 +229,7 @@ void Blowfish_Init(BLOWFISH_CTX *ctx, uint8_t *key, int32_t keyLen)
         ctx->P[i] ^= data;
     }
 
-    // ✅ Properly initialize the P-array using Blowfish encryption
+    //  Properly initialize the P-array using Blowfish encryption
     uint32_t datal = 0, datar = 0;
     for (int i = 0; i < 16 + 2; i += 2) {
         Blowfish_Encrypt(ctx, &datal, &datar);
@@ -237,7 +237,7 @@ void Blowfish_Init(BLOWFISH_CTX *ctx, uint8_t *key, int32_t keyLen)
         ctx->P[i + 1] = datar;
     }
 
-    // ✅ Initialize the S-boxes using Blowfish encryption
+    // Initialize the S-boxes using Blowfish encryption
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 256; j += 2)
         {
@@ -247,7 +247,7 @@ void Blowfish_Init(BLOWFISH_CTX *ctx, uint8_t *key, int32_t keyLen)
         }
     }
 
-    // 🔹 Debugging: Print P-array after key expansion
+    //  Debugging: Print P-array after key expansion
     printf("\n[DEBUG] P-array after Key Expansion:\n");
     for (int i = 0; i < 16 + 2; i++) {
         printf("P[%d]: %08X\n", i, ctx->P[i]);
