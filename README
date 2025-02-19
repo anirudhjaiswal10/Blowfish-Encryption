@@ -1,0 +1,38 @@
+Blowfish Encryption Project
+
+This repository contains the implementation of the Blowfish encryption algorithm along with various test files for evaluating its performance based on different cryptographic properties.
+
+Files and Descriptions
+
+blowfish.c: Main implementation of the Blowfish encryption algorithm.
+blowfish.h: Header file containing function prototypes and definitions.
+blowfish.o: Compiled object file for Blowfish.
+blowfish_avalanche.c: Evaluates the Avalanche effect in Blowfish.
+blowfish_avalanche.exe: Executable for Avalanche effect testing.
+blowfish_correlation.c: Tests correlation properties of encrypted data.
+blowfish_correlation.exe: Executable for correlation testing.
+blowfish_entropy.c: Measures entropy of encrypted data.
+blowfish_entropy.exe: Executable for entropy testing.
+blowfish_rounds.c: Analyzes encryption strength based on different round configurations.
+blowfish_rounds.exe: Executable for round testing.
+blowfish_test.c: Test file for Blowfish encryption, includes Initialization Vector (IV) for CBC mode.
+blowfish_test.exe: Executable for Blowfish encryption testing.
+blowfish_test.o: Compiled object file for Blowfish testing.
+
+Running the Program:
+gcc -c blowfish.c
+gcc -c blowfish_test.c
+gcc -o blowfish_test blowfish_test.c blowfish.c -I.
+./blowfish_test
+
+Similarly for rest of the Cryptographic Tests
+Example: gcc -o blowfish_correlation blowfish.c blowfish_correlation.c
+./blowfish_correlation
+
+gcc -o blowfish_entropy blowfish_entropy.c -lm
+./blowfish_entropy
+
+
+
+
+  
