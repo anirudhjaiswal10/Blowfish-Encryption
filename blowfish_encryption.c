@@ -3,7 +3,7 @@
 #include <time.h>
 #include <string.h>
 #include "blowfish.h"
-
+%
 int main() {
     BLOWFISH_CTX ctx;
     const char *key = "mysecretkey";
