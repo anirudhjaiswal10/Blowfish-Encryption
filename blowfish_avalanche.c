@@ -22,7 +22,7 @@ void calculate_avalanche_effect(BLOWFISH_CTX *ctx, uint32_t left, uint32_t right
     // Encrypt original values
     encrypted_left = left;
     encrypted_right = right;
-    BLOWFISH_ENCRYPT(ctx, &encrypted_left, &encrypted_right);
+    Blowfish_Encrypt(ctx, &encrypted_left, &encrypted_right);
 
     printf("\nOriginal Encryption:\n");
     printf("Left: %08X\n", encrypted_left);
@@ -35,7 +35,7 @@ void calculate_avalanche_effect(BLOWFISH_CTX *ctx, uint32_t left, uint32_t right
     // Encrypt the modified values
     uint32_t flipped_encrypted_left = flipped_left;
     uint32_t flipped_encrypted_right = flipped_right;
-    BLOWFISH_ENCRYPT(ctx, &flipped_encrypted_left, &flipped_encrypted_right);
+    Blowfish_Encrypt(ctx, &flipped_encrypted_left, &flipped_encrypted_right);
 
     printf("\nFlipped Encryption (1-bit change):\n");
     printf("Left: %08X\n", flipped_encrypted_left);
@@ -64,10 +64,11 @@ int main() {
     uint32_t right = 0x89ABCDEF;  // Original right value
 
     // Initialize Blowfish with the key
-    BLOWFISH_INIT(&ctx, (uint8_t *)key, strlen(key));
+    Blowfish_Init(&ctx, (uint8_t *)key, strlen(key));
 
     // Calculate the avalanche effect
     calculate_avalanche_effect(&ctx, left, right);
 
     return 0;
 }
+
