@@ -8,18 +8,36 @@
 #define KEY_SIZE 56      // Blowfish maximum key size (56 bytes)
 #define DATA_SIZE 10240  // Example data size for testing (10 KB)
 
+#include <time.h> // For time()
+
+// Function to generate a random key
+void generate_random_key(uint8_t *key, int key_size) {
+    srand(time(NULL)); // Seed the random number generator
+    for (int i = 0; i < key_size; i++) {
+        key[i] = rand() % 256; // Generate a random byte (0-255)
+    }
+}
+
+// Function to generate random data
+void generate_random_data(uint8_t *data, int data_size) {
+    srand(time(NULL)); // Seed the random number generator
+    for (int i = 0; i < data_size; i++) {
+        data[i] = rand() % 256; // Generate a random byte (0-255)
+    }
+}
+
 // Function to calculate entropy
 double calculate_entropy(uint8_t *data, size_t len) {
-    int freq[256] = {0};
+    int freq[256] = {0}; // Frequency array for each byte value (0-255)
     for (size_t i = 0; i < len; ++i) {
-        freq[data[i]]++;
+        freq[data[i]]++; // Count the frequency of each byte value
     }
 
     double entropy = 0.0;
     for (int i = 0; i < 256; ++i) {
         if (freq[i] > 0) {
-            double p = (double)freq[i] / len;
-            entropy -= p * log2(p);
+            double p = (double)freq[i] / len; // Probability of the byte value
+            entropy -= p * log2(p); // Entropy formula
         }
     }
     return entropy;
@@ -49,7 +67,7 @@ int main() {
 
     // Initialize Blowfish
     BLOWFISH_CTX ctx;
-    BLOWFISH_INIT(&ctx, key, KEY_SIZE);
+    Blowfish_Init(&ctx, key, KEY_SIZE);
 
     // Encrypt the data in blocks
     uint32_t left, right;
@@ -58,7 +76,7 @@ int main() {
         right = *((uint32_t*) (data + i + 4));
 
         // Encrypt the block of data
-        BLOWFISH_ENCRYPT(&ctx, &left, &right);
+        Blowfish_Encrypt(&ctx, &left, &right);
 
         // Store encrypted data back into the array
         *((uint32_t*) (encrypted_data + i)) = left;
@@ -71,3 +89,4 @@ int main() {
 
     return 0;
 }
+
