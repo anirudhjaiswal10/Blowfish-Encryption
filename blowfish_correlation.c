@@ -48,7 +48,7 @@ void assess_correlation(BLOWFISH_CTX *ctx, uint32_t left, uint32_t right, uint8_
     uint32_t modified_left, modified_right;
     
     // Encrypt the original data with the original key
-    BLOWFISH_ENCRYPT(ctx, &original_left, &original_right);
+    Blowfish_Encrypt(ctx, &original_left, &original_right);
     
     // Modify the key (flip one bit in the key)
     uint8_t modified_key[8];  // Blowfish supports 4-56 byte keys, using 8-byte here
@@ -56,13 +56,12 @@ void assess_correlation(BLOWFISH_CTX *ctx, uint32_t left, uint32_t right, uint8_
     modified_key[0] ^= 0x01;  // Flip one bit (change the first byte)
 
     // Reinitialize the Blowfish context with the modified key
-    BLOWFISH_FREE(ctx);  // Free old context memory
-    BLOWFISH_INIT(ctx, modified_key, key_len);  // Reinitialize with modified key
+   Blowfish_Init(ctx, modified_key, key_len);  // Reinitialize with modified key
     
     // Encrypt the data again with the modified key
     modified_left = left;
     modified_right = right;
-    BLOWFISH_ENCRYPT(ctx, &modified_left, &modified_right);
+    Blowfish_Encrypt(ctx, &modified_left, &modified_right);
     
     // Calculate and print the correlation between the original and modified ciphertexts
     calculate_correlation(original_left, original_right, modified_left, modified_right);
@@ -76,7 +75,7 @@ int main() {
     uint32_t right = 0x89ABCDEF;  // Predefined right part of the plaintext
 
     // Initialize Blowfish with the original key
-    BLOWFISH_INIT(&ctx, key, 8);
+    Blowfish_Init(&ctx, key, 8);
 
     printf("Original Data:\n");
     print_hex("Left", left);
@@ -84,9 +83,6 @@ int main() {
 
     // Assess correlation after modifying the key
     assess_correlation(&ctx, left, right, key, 8);
-
-    // Clean up Blowfish context
-    BLOWFISH_FREE(&ctx);
-
     return 0;
 }
+
