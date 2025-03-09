@@ -3,71 +3,58 @@
 #include <string.h>
 #include "blowfish.h"
 
-// Function to calculate Hamming distance between two values
-int hamming_distance(uint32_t x, uint32_t y) {
-    uint32_t diff = x ^ y; // XOR to find differing bits
+#define BLOCK_SIZE 8   // Blowfish block size (64-bit)
+#define ITERATIONS 10  // Number of iterations for averaging avalanche effect
+
+// Optimized Hamming distance calculation using __builtin_popcount()
+int hamming_distance(uint8_t *x, uint8_t *y, size_t length) {
     int count = 0;
-    while (diff) {
-        count += diff & 1; // Count the set bits
-        diff >>= 1;
+    for (size_t i = 0; i < length; i++) {
+        count += __builtin_popcount(x[i] ^ y[i]); // Fast bit count
     }
     return count;
 }
 
-// Function to calculate the avalanche effect
-void calculate_avalanche_effect(BLOWFISH_CTX *ctx, uint32_t left, uint32_t right) {
-    uint32_t encrypted_left, encrypted_right;
-    uint32_t flipped_left, flipped_right;
+// Function to calculate avalanche effect for Blowfish CBC mode
+double calculate_avalanche_effect(BLOWFISH_CTX *ctx, uint8_t *plaintext, uint8_t *key) {
+    uint8_t iv[BLOCK_SIZE] = {0};  // Fixed IV for consistency
+    uint8_t encrypted[BLOCK_SIZE], flipped_encrypted[BLOCK_SIZE];
 
-    // Encrypt original values
-    encrypted_left = left;
-    encrypted_right = right;
-    Blowfish_Encrypt(ctx, &encrypted_left, &encrypted_right);
+    // Encrypt original plaintext
+    Blowfish_Encrypt_CBC(ctx, plaintext, iv, BLOCK_SIZE);
+    memcpy(encrypted, plaintext, BLOCK_SIZE);
 
-    printf("\nOriginal Encryption:\n");
-    printf("Left: %08X\n", encrypted_left);
-    printf("Right: %08X\n", encrypted_right);
+    // Flip a bit in the middle of the plaintext (more balanced impact)
+    plaintext[BLOCK_SIZE / 2] ^= 0x01;
 
-    // Modify a single bit in the left input
-    flipped_left = left ^ 0x00000001; // Flip the least significant bit
-    flipped_right = right;           // Keep the right part unchanged
+    // Reset IV and encrypt modified plaintext
+    Blowfish_Encrypt_CBC(ctx, plaintext, iv, BLOCK_SIZE);
+    memcpy(flipped_encrypted, plaintext, BLOCK_SIZE);
 
-    // Encrypt the modified values
-    uint32_t flipped_encrypted_left = flipped_left;
-    uint32_t flipped_encrypted_right = flipped_right;
-    Blowfish_Encrypt(ctx, &flipped_encrypted_left, &flipped_encrypted_right);
+    // Restore original plaintext (undo bit flip)
+    plaintext[BLOCK_SIZE / 2] ^= 0x01;
 
-    printf("\nFlipped Encryption (1-bit change):\n");
-    printf("Left: %08X\n", flipped_encrypted_left);
-    printf("Right: %08X\n", flipped_encrypted_right);
-
-    // Calculate Hamming distance between the original and flipped encryption
-    int left_hamming = hamming_distance(encrypted_left, flipped_encrypted_left);
-    int right_hamming = hamming_distance(encrypted_right, flipped_encrypted_right);
-
-    printf("\nAvalanche Effect:\n");
-    printf("Hamming Distance (Left): %d bits\n", left_hamming);
-    printf("Hamming Distance (Right): %d bits\n", right_hamming);
-
-    // Normalized Avalanche Effect (Percentage)
-    double left_percentage = (left_hamming / 32.0) * 100.0;
-    double right_percentage = (right_hamming / 32.0) * 100.0;
-
-    printf("Normalized Avalanche Effect (Left): %.2f%%\n", left_percentage);
-    printf("Normalized Avalanche Effect (Right): %.2f%%\n", right_percentage);
+    // Compute and return normalized avalanche effect
+    return (hamming_distance(encrypted, flipped_encrypted, BLOCK_SIZE) / (double)(BLOCK_SIZE * 8)) * 100.0;
 }
 
 int main() {
     BLOWFISH_CTX ctx;
-    const char *key = "testkey"; // Key for encryption
-    uint32_t left = 0x01234567;   // Original left value
-    uint32_t right = 0x89ABCDEF;  // Original right value
+    uint8_t key[BLOCK_SIZE] = "testkey"; // 8-byte Blowfish key
+    uint8_t plaintext[BLOCK_SIZE] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF};
 
     // Initialize Blowfish with the key
-    Blowfish_Init(&ctx, (uint8_t *)key, strlen(key));
+    Blowfish_Init(&ctx, key, BLOCK_SIZE);
 
-    // Calculate the avalanche effect
-    calculate_avalanche_effect(&ctx, left, right);
+    double total_avalanche = 0.0;
+
+    // Run multiple iterations to compute average avalanche effect
+    for (int i = 0; i < ITERATIONS; i++) {
+        total_avalanche += calculate_avalanche_effect(&ctx, plaintext, key);
+    }
+
+    // Print final result
+    printf("Average Avalanche Effect over %d iterations: %.2f%%\n", ITERATIONS, total_avalanche / ITERATIONS);
 
     return 0;
 }
