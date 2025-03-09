@@ -1,88 +1,71 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
-#include "blowfish.h"  // Assuming you've got a working Blowfish header
+#include "blowfish.h"  // Ensure you have a working Blowfish header
 
-// Function to print the hexadecimal representation of a 32-bit data
-void print_hex(const char *label, uint32_t x) {
-    printf("%s: %08X\n", label, x);
-}
+#define BLOCK_SIZE 8  // Blowfish block size (64-bit blocks)
+#define ITERATIONS 10 // Number of iterations for averaging
 
-// Function to compute the Hamming Distance between two 32-bit values
-int hamming_distance(uint32_t a, uint32_t b) {
-    uint32_t diff = a ^ b;  // XOR the two values to find differing bits
+// Optimized Hamming distance function using __builtin_popcount()
+int hamming_distance(const uint8_t *a, const uint8_t *b, size_t length) {
     int distance = 0;
-    
-    // Count the number of differing bits (1s in diff)
-    while (diff) {
-        distance += diff & 1;  // If the last bit is 1, increment the distance
-        diff >>= 1;  // Right shift to check the next bit
+    for (size_t i = 0; i < length; i++) {
+        distance += __builtin_popcount(a[i] ^ b[i]); // Faster bit counting
     }
-    
     return distance;
 }
 
-// Function to calculate the normalized correlation (inverse of Hamming distance)
-void calculate_correlation(uint32_t original_left, uint32_t original_right, 
-                           uint32_t modified_left, uint32_t modified_right) {
-    // Calculate Hamming distance for both left and right ciphertext parts
-    int hamming_left = hamming_distance(original_left, modified_left);
-    int hamming_right = hamming_distance(original_right, modified_right);
-    
-    // Normalize the Hamming distance (Maximum Hamming distance for 32-bit is 32)
-    double normalized_left = (hamming_left / 32.0) * 100.0;
-    double normalized_right = (hamming_right / 32.0) * 100.0;
-    
-    // Print the results: Hamming distance and normalized correlation
-    printf("\nHamming Distance (Left): %d bits\n", hamming_left);
-    printf("Hamming Distance (Right): %d bits\n", hamming_right);
-    printf("Normalized Correlation (Left): %.2f%%\n", normalized_left);
-    printf("Normalized Correlation (Right): %.2f%%\n", normalized_right);
-}
+// Function to compute correlation over multiple iterations
+double calculate_avg_correlation(BLOWFISH_CTX *ctx, uint8_t *plaintext, uint8_t *key, size_t key_len) {
+    uint8_t iv[BLOCK_SIZE] = {0};  // Fixed IV for consistency
+    uint8_t original_ciphertext[BLOCK_SIZE], modified_ciphertext[BLOCK_SIZE];
+    uint8_t modified_key[BLOCK_SIZE];
+    double total_correlation = 0.0;
 
-// Function to assess correlation by modifying the key and comparing ciphertexts
-void assess_correlation(BLOWFISH_CTX *ctx, uint32_t left, uint32_t right, uint8_t *key, uint32_t key_len) {
-    // Original encryption with the original key
-    uint32_t original_left = left;
-    uint32_t original_right = right;
-    uint32_t modified_left, modified_right;
-    
-    // Encrypt the original data with the original key
-    Blowfish_Encrypt(ctx, &original_left, &original_right);
-    
-    // Modify the key (flip one bit in the key)
-    uint8_t modified_key[8];  // Blowfish supports 4-56 byte keys, using 8-byte here
-    memcpy(modified_key, key, key_len);  // Copy original key
-    modified_key[0] ^= 0x01;  // Flip one bit (change the first byte)
+    for (int i = 0; i < ITERATIONS; i++) {
+        // Encrypt with the original key
+        uint8_t input[BLOCK_SIZE];
+        memcpy(input, plaintext, BLOCK_SIZE);
+        memset(iv, 0, BLOCK_SIZE);  // Reset IV
+        Blowfish_Encrypt_CBC(ctx, input, iv, BLOCK_SIZE);
+        memcpy(original_ciphertext, input, BLOCK_SIZE);
 
-    // Reinitialize the Blowfish context with the modified key
-   Blowfish_Init(ctx, modified_key, key_len);  // Reinitialize with modified key
-    
-    // Encrypt the data again with the modified key
-    modified_left = left;
-    modified_right = right;
-    Blowfish_Encrypt(ctx, &modified_left, &modified_right);
-    
-    // Calculate and print the correlation between the original and modified ciphertexts
-    calculate_correlation(original_left, original_right, modified_left, modified_right);
+        // Modify the key (flip a bit in the middle)
+        memcpy(modified_key, key, key_len);
+        modified_key[key_len / 2] ^= 0x01; // Flip 1 bit in the middle of the key
+
+        // Reinitialize Blowfish with the modified key
+        Blowfish_Init(ctx, modified_key, key_len);
+
+        // Encrypt again with the modified key
+        memcpy(input, plaintext, BLOCK_SIZE);
+        memset(iv, 0, BLOCK_SIZE);  // Reset IV
+        Blowfish_Encrypt_CBC(ctx, input, iv, BLOCK_SIZE);
+        memcpy(modified_ciphertext, input, BLOCK_SIZE);
+
+        // Compute Hamming distance
+        int hamming_dist = hamming_distance(original_ciphertext, modified_ciphertext, BLOCK_SIZE);
+
+        // Normalized Correlation Calculation
+        total_correlation += (hamming_dist / (double)(BLOCK_SIZE * 8)) * 100.0;
+    }
+
+    return total_correlation / ITERATIONS; // Return average correlation
 }
 
 int main() {
-    // Define the Blowfish context and a sample key
     BLOWFISH_CTX ctx;
-    uint8_t key[8] = "testkey";  // 8-byte key for Blowfish
-    uint32_t left = 0x01234567;  // Predefined left part of the plaintext
-    uint32_t right = 0x89ABCDEF;  // Predefined right part of the plaintext
+    uint8_t key[BLOCK_SIZE] = "testkey";  // 8-byte Blowfish key
+    uint8_t plaintext[BLOCK_SIZE] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF};
 
     // Initialize Blowfish with the original key
-    Blowfish_Init(&ctx, key, 8);
+    Blowfish_Init(&ctx, key, BLOCK_SIZE);
 
-    printf("Original Data:\n");
-    print_hex("Left", left);
-    print_hex("Right", right);
+    // Calculate and print only the average correlation
+    double avg_correlation = calculate_avg_correlation(&ctx, plaintext, key, BLOCK_SIZE);
+    printf("Average Correlation over %d iterations: %.2f%%\n", ITERATIONS, avg_correlation);
 
-    // Assess correlation after modifying the key
-    assess_correlation(&ctx, left, right, key, 8);
     return 0;
 }
+
 
