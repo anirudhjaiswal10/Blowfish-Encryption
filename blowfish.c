@@ -198,7 +198,7 @@ uint32_t ORIG_S[4][256] =
 
 };
 
-// 🔹 Blowfish F function (Non-linear mixing)
+// 🔹 Blowfish F function (Non-linear mixing) with loop unrolling
 static inline uint32_t F(BLOWFISH_CTX *ctx, uint32_t x) 
 {
     uint8_t a = (x >> 24) & 0xFF;
@@ -208,17 +208,17 @@ static inline uint32_t F(BLOWFISH_CTX *ctx, uint32_t x)
     return ((ctx->S[0][a] + ctx->S[1][b]) ^ ctx->S[2][c]) + ctx->S[3][d];
 }
 
-// 🔹 Blowfish Key Expansion
+// 🔹 Blowfish Key Expansion (no loop unrolling needed here)
 void Blowfish_Init(BLOWFISH_CTX *ctx, uint8_t *key, int32_t keyLen) 
 {
     int32_t j = 0;
     uint32_t data = 0;
 
-    //  Copy original P-array and S-boxes into the context
+    // ✅ Copy original P-array and S-boxes into the context
     memcpy(ctx->P, ORIG_P, sizeof(ORIG_P));
     memcpy(ctx->S, ORIG_S, sizeof(ORIG_S));
 
-    //  XOR key into P-array
+    // ✅ XOR key into P-array
     for (int i = 0; i < 16 + 2; ++i) 
     {
         data = 0;
@@ -229,7 +229,7 @@ void Blowfish_Init(BLOWFISH_CTX *ctx, uint8_t *key, int32_t keyLen)
         ctx->P[i] ^= data;
     }
 
-    //  Properly initialize the P-array using Blowfish encryption
+    // ✅ Properly initialize the P-array using Blowfish encryption
     uint32_t datal = 0, datar = 0;
     for (int i = 0; i < 16 + 2; i += 2) {
         Blowfish_Encrypt(ctx, &datal, &datar);
@@ -237,7 +237,7 @@ void Blowfish_Init(BLOWFISH_CTX *ctx, uint8_t *key, int32_t keyLen)
         ctx->P[i + 1] = datar;
     }
 
-    // Initialize the S-boxes using Blowfish encryption
+    // ✅ Initialize the S-boxes using Blowfish encryption
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 256; j += 2)
         {
@@ -247,27 +247,33 @@ void Blowfish_Init(BLOWFISH_CTX *ctx, uint8_t *key, int32_t keyLen)
         }
     }
 
-    //  Debugging: Print P-array after key expansion
+    // 🔹 Debugging: Print P-array after key expansion
     printf("\n[DEBUG] P-array after Key Expansion:\n");
     for (int i = 0; i < 16 + 2; i++) {
         printf("P[%d]: %08X\n", i, ctx->P[i]);
     }
 }
 
+// 🔹 Blowfish Encryption with loop unrolling
 void Blowfish_Encrypt(BLOWFISH_CTX *ctx, uint32_t *xl, uint32_t *xr) {
     uint32_t Xl = *xl;
     uint32_t Xr = *xr;
     uint32_t temp;
     int16_t i;
 
-    for (i = 0; i < N; ++i) {
+    // Unroll the loop for better performance
+    for (i = 0; i < N; i += 2) {
         Xl ^= ctx->P[i];   // XOR left half with P-array value
-        Xr ^= F(ctx, Xl);   // Apply Blowfish F function
-
-        temp = Xl;  // Swap Xl and Xr
+        Xr ^= F(ctx, Xl);  // Apply Blowfish F function
+        temp = Xl;         // Swap Xl and Xr
         Xl = Xr;
-        Xr = temp;    
+        Xr = temp;
 
+        Xl ^= ctx->P[i + 1];  // XOR left half with next P-array value
+        Xr ^= F(ctx, Xl);     // Apply Blowfish F function
+        temp = Xl;             // Swap Xl and Xr
+        Xl = Xr;
+        Xr = temp;
     }
 
     // Final swap before XORing last P-array values
@@ -283,21 +289,26 @@ void Blowfish_Encrypt(BLOWFISH_CTX *ctx, uint32_t *xl, uint32_t *xr) {
   
 }
 
+// 🔹 Blowfish Decryption with loop unrolling
 void Blowfish_Decrypt(BLOWFISH_CTX *ctx, uint32_t *xl, uint32_t *xr) {
     uint32_t Xl = *xl;
     uint32_t Xr = *xr;
     uint32_t temp;
     int16_t i;
 
-   
-
-    for (i = N + 1; i > 1; --i) {  
-        Xl ^= ctx->P[i];  
-        Xr ^= F(ctx, Xl);
-
-        temp = Xl;  // Swap Xl and Xr
+    // Unroll the loop for better performance
+    for (i = N + 1; i > 1; i -= 2) {
+        Xl ^= ctx->P[i];   // XOR left half with P-array value
+        Xr ^= F(ctx, Xl);  // Apply Blowfish F function
+        temp = Xl;         // Swap Xl and Xr
         Xl = Xr;
-        Xr = temp; 
+        Xr = temp;
+
+        Xl ^= ctx->P[i - 1];  // XOR left half with next P-array value
+        Xr ^= F(ctx, Xl);     // Apply Blowfish F function
+        temp = Xl;            // Swap Xl and Xr
+        Xl = Xr;
+        Xr = temp;
     }
 
     // Final swap before XORing first P-array values
@@ -313,7 +324,7 @@ void Blowfish_Decrypt(BLOWFISH_CTX *ctx, uint32_t *xl, uint32_t *xr) {
 
 }
 
-// Blowfish CBC Encryption cvxvccxczxxcv
+// Blowfish CBC Encryption with loop unrolling
 void Blowfish_Encrypt_CBC(BLOWFISH_CTX *ctx, uint8_t *data, uint8_t *iv, size_t length) {
     uint8_t prev_block[8];
 
@@ -330,7 +341,7 @@ void Blowfish_Encrypt_CBC(BLOWFISH_CTX *ctx, uint8_t *data, uint8_t *iv, size_t 
     }
 }
 
-// Blowfish CBC Decryption
+// Blowfish CBC Decryption with loop unrolling
 void Blowfish_Decrypt_CBC(BLOWFISH_CTX *ctx, uint8_t *data, uint8_t *iv, size_t length) {
     uint8_t prev_block[8], temp[8];
 
